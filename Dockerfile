@@ -1,6 +1,11 @@
 # ---- Stage 1: Base ----
 FROM node:22-alpine AS base
 
+ARG APK_MIRROR=dl-cdn.alpinelinux.org
+RUN if [ "$APK_MIRROR" != "dl-cdn.alpinelinux.org" ]; then \
+      sed -i "s|dl-cdn.alpinelinux.org|${APK_MIRROR}|g" /etc/apk/repositories; \
+    fi
+
 RUN apk add --no-cache libc6-compat
 RUN corepack enable && corepack prepare pnpm@10.28.0 --activate
 
@@ -15,7 +20,8 @@ RUN apk add --no-cache python3 build-base g++ cairo-dev pango-dev jpeg-dev gifli
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY packages/ ./packages/
 
-RUN pnpm install --frozen-lockfile
+ARG NPM_REGISTRY=https://registry.npmjs.org
+RUN pnpm install --frozen-lockfile --registry $NPM_REGISTRY
 
 # ---- Stage 3: Builder ----
 FROM base AS builder
@@ -28,6 +34,11 @@ RUN pnpm build
 
 # ---- Stage 4: Runner ----
 FROM node:22-alpine AS runner
+
+ARG APK_MIRROR=dl-cdn.alpinelinux.org
+RUN if [ "$APK_MIRROR" != "dl-cdn.alpinelinux.org" ]; then \
+      sed -i "s|dl-cdn.alpinelinux.org|${APK_MIRROR}|g" /etc/apk/repositories; \
+    fi
 
 WORKDIR /app
 
